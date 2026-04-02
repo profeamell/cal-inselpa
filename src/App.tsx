@@ -105,7 +105,20 @@ export default function App() {
     setIsTyping(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      // @ts-ignore - Vite env variables
+      const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY;
+      
+      if (!apiKey || apiKey === 'undefined' || apiKey === 'null' || apiKey === '') {
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          text: "⚠️ Falta la clave de API de Gemini. Como estás fuera de AI Studio (ej. Vercel), debes crear una clave en aistudio.google.com y agregarla como variable de entorno GEMINI_API_KEY. ¡Recuerda hacer un Redeploy después de agregarla!", 
+          isError: true 
+        }]);
+        setIsTyping(false);
+        return;
+      }
+
+      const ai = new GoogleGenAI({ apiKey: apiKey as string });
       const context = events.map(e => `- ${e.summary}: ${new Date(e.start.dateTime || e.start.date || '').toLocaleString('es-CO')}`).join('\n');
       
       const response = await ai.models.generateContent({
