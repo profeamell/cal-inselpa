@@ -9,7 +9,9 @@ import {
   Sparkles,
   LayoutGrid,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  X,
+  Share2
 } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 
@@ -47,6 +49,7 @@ export default function App() {
   const [currentGridDate, setCurrentGridDate] = useState(new Date());
   const [gridEvents, setGridEvents] = useState<CalendarEvent[]>([]);
   const [isLoadingGrid, setIsLoadingGrid] = useState(false);
+  const [selectedDay, setSelectedDay] = useState<{date: Date, events: CalendarEvent[]} | null>(null);
   
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -94,6 +97,22 @@ export default function App() {
     };
     fetchGridEvents();
   }, [currentGridDate.getFullYear(), currentGridDate.getMonth()]);
+
+  const shareToWhatsApp = () => {
+    if (!selectedDay || selectedDay.events.length === 0) return;
+    
+    const dateStr = selectedDay.date.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
+    let text = `📅 *Eventos INSELPA - ${dateStr}*\n\n`;
+    
+    selectedDay.events.forEach(e => {
+      const hasTime = !!e.start.dateTime;
+      const timeStr = hasTime ? new Date(e.start.dateTime!).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'}) : 'Todo el día';
+      text += `🔸 *${timeStr}* - ${e.summary}\n`;
+    });
+    
+    const encodedText = encodeURIComponent(text);
+    window.open(`https://wa.me/?text=${encodedText}`, '_blank');
+  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -287,7 +306,11 @@ export default function App() {
                     });
 
                     return (
-                      <div key={day} className="min-h-[80px] sm:min-h-[120px] bg-white p-1 sm:p-2 hover:bg-slate-50 transition-colors relative group flex flex-col">
+                      <div 
+                        key={day} 
+                        onClick={() => setSelectedDay({ date: new Date(currentGridDate.getFullYear(), currentGridDate.getMonth(), day), events: dayEvents })}
+                        className="min-h-[80px] sm:min-h-[120px] bg-white p-1 sm:p-2 hover:bg-slate-50 transition-colors relative group flex flex-col cursor-pointer active:bg-slate-100"
+                      >
                         <div className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full mb-1 flex-shrink-0 ${isToday ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-700'}`}>
                           {day}
                         </div>
@@ -308,6 +331,56 @@ export default function App() {
                 </div>
               </div>
             </div>
+
+            {/* Modal for selected day events */}
+            {selectedDay && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm" onClick={() => setSelectedDay(null)}>
+                <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50/50">
+                    <h3 className="font-semibold text-slate-800 capitalize">
+                      {selectedDay.date.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    </h3>
+                    <button onClick={() => setSelectedDay(null)} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-lg transition-colors">
+                      <X size={20} />
+                    </button>
+                  </div>
+                  <div className="p-4 max-h-[60vh] overflow-y-auto">
+                    {selectedDay.events.length > 0 ? (
+                      <div className="space-y-3">
+                        {selectedDay.events.map((e, idx) => {
+                          const hasTime = !!e.start.dateTime;
+                          return (
+                            <div key={idx} className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-3">
+                              <div className="font-medium text-slate-800 mb-1">{e.summary}</div>
+                              {hasTime && (
+                                <div className="flex items-center gap-1.5 text-sm text-indigo-600">
+                                  <Clock size={14} />
+                                  <span>{new Date(e.start.dateTime!).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'})}</span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                        <div className="pt-2">
+                          <button 
+                            onClick={shareToWhatsApp}
+                            className="w-full flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-white py-2.5 rounded-xl font-medium transition-colors shadow-sm"
+                          >
+                            <Share2 size={18} />
+                            Compartir por WhatsApp
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-slate-500">
+                        <CalendarIcon size={32} className="mx-auto mb-3 text-slate-300" />
+                        <p>No hay eventos programados para este día.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto p-4 sm:p-8 w-full">
