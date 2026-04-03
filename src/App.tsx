@@ -81,6 +81,13 @@ export default function App() {
       recognitionRef.current.onerror = (event: any) => {
         console.error("Error de reconocimiento de voz:", event.error);
         setIsListening(false);
+        if (event.error === 'not-allowed') {
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            text: '⚠️ No tengo permiso para usar el micrófono. Por favor, revisa la configuración de tu navegador (el ícono de candado en la barra de direcciones) para permitir el acceso al micrófono.',
+            isError: true
+          }]);
+        }
       };
 
       recognitionRef.current.onend = () => {
