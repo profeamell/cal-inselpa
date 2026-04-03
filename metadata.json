@@ -1,5 +1,5 @@
 {
   "name": "Calendario INSELPA",
   "description": "Asistente y calendario de eventos para INSELPA",
-  "requestFramePermissions": ["microphone"]
+  "requestFramePermissions": []
 }

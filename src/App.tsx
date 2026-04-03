@@ -9,9 +9,7 @@ import {
   Sparkles,
   LayoutGrid,
   ChevronLeft,
-  ChevronRight,
-  Mic,
-  MicOff
+  ChevronRight
 } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 
@@ -41,11 +39,6 @@ export default function App() {
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   
-  // State for voice recognition
-  const [isListening, setIsListening] = useState(false);
-  const [speechSupported, setSpeechSupported] = useState(false);
-  const recognitionRef = useRef<any>(null);
-
   // State for weekly upcoming events
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
@@ -60,41 +53,6 @@ export default function App() {
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, isTyping]);
-
-  // Initialize Speech Recognition
-  useEffect(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      setSpeechSupported(true);
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = 'es-CO';
-
-      recognitionRef.current.onresult = (event: any) => {
-        const transcript = Array.from(event.results)
-          .map((result: any) => result[0].transcript)
-          .join('');
-        setInputText(transcript);
-      };
-
-      recognitionRef.current.onerror = (event: any) => {
-        console.error("Error de reconocimiento de voz:", event.error);
-        setIsListening(false);
-        if (event.error === 'not-allowed') {
-          setMessages(prev => [...prev, {
-            role: 'assistant',
-            text: '⚠️ No tengo permiso para usar el micrófono. Por favor, revisa la configuración de tu navegador (el ícono de candado en la barra de direcciones) para permitir el acceso al micrófono.',
-            isError: true
-          }]);
-        }
-      };
-
-      recognitionRef.current.onend = () => {
-        setIsListening(false);
-      };
-    }
-  }, []);
 
   // Fetch upcoming events for chat context and weekly view
   useEffect(() => {
@@ -136,20 +94,6 @@ export default function App() {
     };
     fetchGridEvents();
   }, [currentGridDate.getFullYear(), currentGridDate.getMonth()]);
-
-  const toggleListening = () => {
-    if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
-    } else {
-      try {
-        recognitionRef.current?.start();
-        setIsListening(true);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -279,21 +223,11 @@ export default function App() {
             
             <div className="p-4 sm:p-6 bg-gradient-to-t from-slate-50 via-slate-50 to-transparent">
               <form onSubmit={handleSendMessage} className="relative flex items-end gap-2 bg-white rounded-2xl shadow-sm border border-slate-200 p-2 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all">
-                {speechSupported && (
-                  <button
-                    type="button"
-                    onClick={toggleListening}
-                    className={`flex-shrink-0 h-[44px] w-[44px] flex items-center justify-center rounded-xl transition-colors ${isListening ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
-                    title={isListening ? "Detener grabación" : "Hablar"}
-                  >
-                    {isListening ? <MicOff size={18} /> : <Mic size={18} />}
-                  </button>
-                )}
                 <input 
                   value={inputText} 
                   onChange={e => setInputText(e.target.value)} 
-                  className="flex-1 bg-transparent px-2 sm:px-4 py-3 text-[15px] focus:outline-none placeholder:text-slate-400 min-h-[44px]" 
-                  placeholder={isListening ? "Escuchando..." : "Escribe tu consulta aquí..."} 
+                  className="flex-1 bg-transparent px-4 py-3 text-[15px] focus:outline-none placeholder:text-slate-400 min-h-[44px]" 
+                  placeholder="Escribe tu consulta aquí..." 
                 />
                 <button 
                   type="submit" 
