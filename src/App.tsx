@@ -16,7 +16,7 @@ import {
 import { GoogleGenAI } from '@google/genai';
 
 const GOOGLE_CALENDAR_API_KEY = "AIzaSyALDbepduzEREOHW3PZI--8-gElaDeWfRE";
-const CALENDAR_ID = "1b31d9021a571a9cf14fcf307f7cb12c286276c290fca73b9847ec14dd9a3406@group.calendar.google.com";
+const CALENDAR_ID = "ielapascuala@gmail.com";
 const LOGO_URL = "https://i.imgur.com/JYSeHia.png"; 
 
 interface Message {
