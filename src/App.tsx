@@ -331,22 +331,32 @@ export default function App() {
               </div>
 
               <div className="bg-slate-200 border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-                <div className="grid grid-cols-7 gap-px bg-slate-200 border-b border-slate-200">
-                  {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(day => (
+                <div className="grid grid-cols-5 gap-px bg-slate-200 border-b border-slate-200">
+                  {['Lun', 'Mar', 'Mié', 'Jue', 'Vie'].map(day => (
                     <div key={day} className="py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50">
                       {day}
                     </div>
                   ))}
                 </div>
-                <div className="grid grid-cols-7 gap-px bg-slate-200 auto-rows-fr">
+                <div className="grid grid-cols-5 gap-px bg-slate-200 auto-rows-fr">
                   {/* Empty cells for days before the 1st of the month */}
-                  {Array.from({ length: (new Date(currentGridDate.getFullYear(), currentGridDate.getMonth(), 1).getDay() + 6) % 7 }).map((_, i) => (
-                    <div key={`empty-${i}`} className="min-h-[80px] sm:min-h-[120px] bg-slate-50/50 p-2"></div>
-                  ))}
+                  {(() => {
+                    const firstDay = new Date(currentGridDate.getFullYear(), currentGridDate.getMonth(), 1).getDay();
+                    const emptyCells = (firstDay === 0 || firstDay === 6) ? 0 : firstDay - 1;
+                    return Array.from({ length: emptyCells }).map((_, i) => (
+                      <div key={`empty-${i}`} className="min-h-[80px] sm:min-h-[120px] bg-slate-50/50 p-2"></div>
+                    ));
+                  })()}
                   
                   {/* Actual days of the month */}
                   {Array.from({ length: new Date(currentGridDate.getFullYear(), currentGridDate.getMonth() + 1, 0).getDate() }).map((_, i) => {
                     const day = i + 1;
+                    const dateObj = new Date(currentGridDate.getFullYear(), currentGridDate.getMonth(), day);
+                    const dayOfWeek = dateObj.getDay();
+                    
+                    // Skip weekends
+                    if (dayOfWeek === 0 || dayOfWeek === 6) return null;
+
                     const isToday = new Date().getDate() === day && new Date().getMonth() === currentGridDate.getMonth() && new Date().getFullYear() === currentGridDate.getFullYear();
                     const dayEvents = gridEvents.filter(e => {
                       const eDate = parseEventDate(e);
@@ -356,7 +366,7 @@ export default function App() {
                     return (
                       <div 
                         key={day} 
-                        onClick={() => setSelectedDay({ date: new Date(currentGridDate.getFullYear(), currentGridDate.getMonth(), day), events: dayEvents })}
+                        onClick={() => setSelectedDay({ date: dateObj, events: dayEvents })}
                         className="min-h-[80px] sm:min-h-[120px] bg-white p-1 sm:p-2 hover:bg-slate-50 transition-colors relative group flex flex-col cursor-pointer active:bg-slate-100"
                       >
                         <div className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full mb-1 flex-shrink-0 ${isToday ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-700'}`}>
