@@ -31,7 +31,53 @@ interface CalendarEvent {
     dateTime?: string;
     date?: string;
   };
+  colorId?: string;
 }
+
+const getEventColor = (colorId?: string, summary?: string) => {
+  const colors: Record<string, { bg: string, text: string, border: string }> = {
+    '1': { bg: '#e0e7ff', text: '#3730a3', border: '#c7d2fe' }, // Lavender
+    '2': { bg: '#d1fae5', text: '#065f46', border: '#a7f3d0' }, // Sage
+    '3': { bg: '#f3e8ff', text: '#6b21a8', border: '#e9d5ff' }, // Grape
+    '4': { bg: '#ffe4e6', text: '#9f1239', border: '#fecdd3' }, // Flamingo
+    '5': { bg: '#fef3c7', text: '#92400e', border: '#fde68a' }, // Banana
+    '6': { bg: '#ffedd5', text: '#9a3412', border: '#fed7aa' }, // Tangerine
+    '7': { bg: '#cffafe', text: '#155e75', border: '#a5f3fc' }, // Peacock
+    '8': { bg: '#f1f5f9', text: '#334155', border: '#e2e8f0' }, // Graphite
+    '9': { bg: '#dbeafe', text: '#1e3a8a', border: '#bfdbfe' }, // Blueberry
+    '10': { bg: '#dcfce3', text: '#166534', border: '#bbf7d0' }, // Basil
+    '11': { bg: '#fee2e2', text: '#991b1b', border: '#fecaca' }, // Tomato
+    default: { bg: '#eef2ff', text: '#4f46e5', border: '#c7d2fe' } // Default Indigo
+  };
+
+  if (colorId && colors[colorId]) {
+    return colors[colorId];
+  }
+
+  // Fallback to keyword-based colors if no colorId is provided by Google Calendar
+  if (summary) {
+    const lowerSummary = summary.toLowerCase();
+    if (lowerSummary.includes('finaliza') || lowerSummary.includes('límite') || lowerSummary.includes('cargue')) return colors['11']; // Tomato
+    if (lowerSummary.includes('inicio') || lowerSummary.includes('comienza')) return colors['10']; // Basil
+    if (lowerSummary.includes('reunión') || lowerSummary.includes('cep') || lowerSummary.includes('comité')) return colors['9']; // Blueberry
+    if (lowerSummary.includes('proyecto') || lowerSummary.includes('planeación') || lowerSummary.includes('taller')) return colors['3']; // Grape
+    if (lowerSummary.includes('día') || lowerSummary.includes('festivo') || lowerSummary.includes('celebración')) return colors['5']; // Banana
+    if (lowerSummary.includes('entrega') || lowerSummary.includes('informe')) return colors['6']; // Tangerine
+  }
+
+  return colors.default;
+};
+
+const parseEventDate = (e: CalendarEvent) => {
+  if (e.start.dateTime) {
+    return new Date(e.start.dateTime);
+  }
+  if (e.start.date) {
+    const [year, month, day] = e.start.date.split('-');
+    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+  }
+  return new Date();
+};
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'chat' | 'calendar' | 'grid'>('chat');
@@ -138,7 +184,7 @@ export default function App() {
       }
 
       const ai = new GoogleGenAI({ apiKey: apiKey as string });
-      const context = events.map(e => `- ${e.summary}: ${new Date(e.start.dateTime || e.start.date || '').toLocaleString('es-CO')}`).join('\n');
+      const context = events.map(e => `- ${e.summary}: ${parseEventDate(e).toLocaleString('es-CO')}`).join('\n');
       
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
@@ -159,9 +205,11 @@ export default function App() {
   };
 
   const weeklyEvents = events.filter(e => {
-    const d = new Date(e.start.dateTime || e.start.date || '');
+    const d = parseEventDate(e);
     const now = new Date();
-    const week = new Date();
+    // Set 'now' to start of today to include today's all-day events
+    now.setHours(0, 0, 0, 0);
+    const week = new Date(now);
     week.setDate(now.getDate() + 7);
     return d >= now && d <= week;
   });
@@ -301,7 +349,7 @@ export default function App() {
                     const day = i + 1;
                     const isToday = new Date().getDate() === day && new Date().getMonth() === currentGridDate.getMonth() && new Date().getFullYear() === currentGridDate.getFullYear();
                     const dayEvents = gridEvents.filter(e => {
-                      const eDate = new Date(e.start.dateTime || e.start.date || '');
+                      const eDate = parseEventDate(e);
                       return eDate.getDate() === day && eDate.getMonth() === currentGridDate.getMonth() && eDate.getFullYear() === currentGridDate.getFullYear();
                     });
 
@@ -317,8 +365,14 @@ export default function App() {
                         <div className="space-y-1 overflow-y-auto flex-1 no-scrollbar">
                           {isLoadingGrid ? null : dayEvents.map((e, idx) => {
                             const hasTime = !!e.start.dateTime;
+                            const color = getEventColor(e.colorId, e.summary);
                             return (
-                              <div key={idx} className="text-[10px] sm:text-xs bg-indigo-50 text-indigo-700 border border-indigo-100 rounded px-1.5 py-0.5 truncate" title={e.summary}>
+                              <div 
+                                key={idx} 
+                                className="text-[10px] sm:text-xs rounded px-1.5 py-0.5 truncate border" 
+                                style={{ backgroundColor: color.bg, color: color.text, borderColor: color.border }}
+                                title={e.summary}
+                              >
                                 {hasTime && <span className="font-semibold mr-1">{new Date(e.start.dateTime!).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'})}</span>}
                                 {e.summary}
                               </div>
@@ -349,11 +403,12 @@ export default function App() {
                       <div className="space-y-3">
                         {selectedDay.events.map((e, idx) => {
                           const hasTime = !!e.start.dateTime;
+                          const color = getEventColor(e.colorId, e.summary);
                           return (
-                            <div key={idx} className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-3">
-                              <div className="font-medium text-slate-800 mb-1">{e.summary}</div>
+                            <div key={idx} className="border rounded-xl p-3" style={{ backgroundColor: color.bg, borderColor: color.border }}>
+                              <div className="font-medium mb-1" style={{ color: color.text }}>{e.summary}</div>
                               {hasTime && (
-                                <div className="flex items-center gap-1.5 text-sm text-indigo-600">
+                                <div className="flex items-center gap-1.5 text-sm" style={{ color: color.text, opacity: 0.85 }}>
                                   <Clock size={14} />
                                   <span>{new Date(e.start.dateTime!).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'})}</span>
                                 </div>
@@ -403,21 +458,22 @@ export default function App() {
               ) : (
                 <div className="space-y-4">
                   {weeklyEvents.length > 0 ? weeklyEvents.map((e, i) => {
-                    const eventDate = new Date(e.start.dateTime || e.start.date || '');
+                    const eventDate = parseEventDate(e);
+                    const color = getEventColor(e.colorId, e.summary);
                     return (
-                      <div key={i} className="group bg-white p-5 rounded-2xl border border-slate-200 hover:border-indigo-300 hover:shadow-md transition-all duration-200 flex flex-col sm:flex-row gap-5 sm:items-center">
-                        <div className="flex-shrink-0 bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-100 text-indigo-700 rounded-xl p-3 text-center min-w-[72px] shadow-sm group-hover:scale-105 transition-transform">
+                      <div key={i} className="group bg-white p-5 rounded-2xl border border-slate-200 hover:shadow-md transition-all duration-200 flex flex-col sm:flex-row gap-5 sm:items-center" style={{ borderLeftColor: color.text, borderLeftWidth: '4px' }}>
+                        <div className="flex-shrink-0 border rounded-xl p-3 text-center min-w-[72px] shadow-sm group-hover:scale-105 transition-transform" style={{ backgroundColor: color.bg, color: color.text, borderColor: color.border }}>
                           <div className="text-2xl font-black leading-none">{eventDate.getDate()}</div>
                           <div className="text-[11px] font-bold uppercase tracking-wider mt-1 opacity-80">
                             {eventDate.toLocaleDateString('es-CO', {month: 'short'})}
                           </div>
                         </div>
                         <div className="flex-1">
-                          <h3 className="font-semibold text-lg text-slate-800 group-hover:text-indigo-700 transition-colors">{e.summary}</h3>
+                          <h3 className="font-semibold text-lg text-slate-800 transition-colors" style={{ color: color.text }}>{e.summary}</h3>
                           <div className="flex items-center gap-4 mt-2 text-sm text-slate-500">
                             <div className="flex items-center gap-1.5">
                               <Clock size={14} className="text-slate-400" />
-                              <span>{eventDate.toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'})}</span>
+                              <span>{e.start.dateTime ? eventDate.toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'}) : 'Todo el día'}</span>
                             </div>
                           </div>
                         </div>
